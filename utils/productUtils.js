@@ -1,4 +1,5 @@
 import { obtenerCategorias, obtenerSubcategorias } from '../services/perseoService.js';
+import { axiosClient } from './httpClient.js';
 
 const CACHE_KEY_CATEGORIAS_MAPA = 'categorias_mapa_id_nombre';
 const CACHE_KEY_SUBCATEGORIAS_MAPA = 'subcategorias_mapa_id_nombre';
@@ -254,7 +255,6 @@ export function agruparProductos(lista) {
  * @returns {Promise<number|null>} - ID de la categoría o null si no se encuentra
  */
 export async function buscarCategoriaPorNombre(nombreCategoria, cacheCategorias, API_BASE_URL, PERSEO_API_KEY) {
-    const axios = (await import('axios')).default;
     const cacheKey = 'categorias_all';
     
     // Intentar obtener desde caché primero
@@ -263,7 +263,7 @@ export async function buscarCategoriaPorNombre(nombreCategoria, cacheCategorias,
     if (!categorias || !categorias.data) {
         // Si no hay en caché, consultar a Perseo
         try {
-            const response = await axios.post(`${API_BASE_URL}/productos_categorias_consulta`, {
+            const response = await axiosClient.post(`${API_BASE_URL}/productos_categorias_consulta`, {
                 "api_key": PERSEO_API_KEY,
                 "descripcion": ""
             });

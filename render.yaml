@@ -24,27 +24,29 @@ services:
         value: "21600"
       - key: CACHE_TTL_PRODUCTOS
         value: "14400"
+      - key: CACHE_TTL_EXISTENCIAS
+        value: "120"
       - key: CACHE_MAX_CATALOG_KEYS
-        value: "6"
+        value: "50"
       - key: CACHE_MAX_IMAGENES_KEYS
-        value: "200"
+        value: "2500"
       - key: CACHE_CONTROL_PRODUCTOS
-        value: "300"
+        value: "60"
       - key: DEFAULT_INCLUIR_IMAGENES
-        value: "true"
+        value: "false"
       - key: DEFAULT_MAX_IMAGENES
         value: "1"
       - key: DEFAULT_TARIFAS_RESUMIDAS
         value: "true"
       - key: MAX_CONCURRENT_REQUESTS
-        value: "2"
-      - key: MAX_CONCURRENT_COMPRESSION
-        value: "1"
-      - key: MAX_CONCURRENT_EXISTENCIAS
         value: "4"
+      - key: MAX_CONCURRENT_COMPRESSION
+        value: "2"
+      - key: MAX_CONCURRENT_EXISTENCIAS
+        value: "15"
       - key: HIDRATACION_BATCH_SIZE
-        value: "1"
+        value: "4"
       - key: EXISTENCIAS_BATCH_SIZE
-        value: "8"
+        value: "30"
       - key: COMPRESSION_BATCH_SIZE
         value: "1"

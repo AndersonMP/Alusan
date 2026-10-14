@@ -1,13 +1,12 @@
-import axios from 'axios';
 import pLimit from 'p-limit';
 import {
     PERSEO_API_KEY,
     API_BASE_URL,
     MAX_CONCURRENT_EXISTENCIAS,
-    EXISTENCIAS_BATCH_SIZE,
-    IMAGE_REQUEST_TIMEOUT,
+    EXISTENCIAS_REQUEST_TIMEOUT,
     PRODUCTOS_CONSULTA_TIMEOUT
 } from '../config/index.js';
+import { axiosClient } from '../utils/httpClient.js';
 import { obtenerImagenesComprimidas } from './imagenProductoService.js';
 
 const limitadorExistencias = pLimit(MAX_CONCURRENT_EXISTENCIAS);
@@ -17,7 +16,7 @@ const limitadorExistencias = pLimit(MAX_CONCURRENT_EXISTENCIAS);
  * @returns {Promise<Object>} - Respuesta con categorías
  */
 export async function obtenerCategorias() {
-    const response = await axios.post(`${API_BASE_URL}/productos_categorias_consulta`, {
+    const response = await axiosClient.post(`${API_BASE_URL}/productos_categorias_consulta`, {
         "api_key": PERSEO_API_KEY,
         "descripcion": ""
     });
@@ -30,7 +29,7 @@ export async function obtenerCategorias() {
  * @returns {Promise<Object>} - Respuesta con subcategorias
  */
 export async function obtenerSubcategorias() {
-    const response = await axios.post(`${API_BASE_URL}/productos_subcategorias_consulta`, {
+    const response = await axiosClient.post(`${API_BASE_URL}/productos_subcategorias_consulta`, {
         "api_key": PERSEO_API_KEY
     });
 
@@ -43,106 +42,126 @@ export async function obtenerSubcategorias() {
  * @returns {Promise<Object>} - Respuesta con productos
  */
 export async function obtenerProductosPorCategoria(categoriaId) {
-    const response = await axios.post(`${API_BASE_URL}/productos_consulta`, {
+    const response = await axiosClient.post(`${API_BASE_URL}/productos_consulta`, {
         "api_key": PERSEO_API_KEY,
         "categoriasid": categoriaId,
         "usuario_creacion": "ADMIN",
         "dispositivo": "API"
     }, {
-        timeout: PRODUCTOS_CONSULTA_TIMEOUT,
-        validateStatus: (status) => status < 500
+        timeout: PRODUCTOS_CONSULTA_TIMEOUT
     });
     
     return response.data;
 }
 
 /**
+ * Guarda las existencias de todos los almacenes de un producto en el cache
+ * @param {number} productoId
+ * @param {Array<{almacenesid: number, existencias: number}>} existenciasArray
+ * @param {import('node-cache')|null} cacheExistencias
+ * @param {number} almacenBuscadoId
+ * @returns {number} existencias del almacen buscado
+ */
+function guardarExistenciasEnCache(productoId, existenciasArray, cacheExistencias, almacenBuscadoId) {
+    let stockAlmacen = 0;
+    if (Array.isArray(existenciasArray)) {
+        for (const item of existenciasArray) {
+            if (item.almacenesid === almacenBuscadoId) {
+                stockAlmacen = item.existencias || 0;
+            }
+        }
+    }
+    // Solo se guarda el almacén consultado: guardar todos los almacenes de cada producto
+    // llenaba el caché (10000 claves) con una sola categoría. Un fallo del caché no debe romper la consulta.
+    if (cacheExistencias) {
+        try {
+            cacheExistencias.set(`stock_a${almacenBuscadoId}_p${productoId}`, stockAlmacen);
+        } catch {
+            // caché lleno: se devuelve el valor sin cachearlo
+        }
+    }
+    return stockAlmacen;
+}
+
+/**
  * Obtiene las existencias de un producto específico del almacén configurado
  * @param {number} productoId - ID del producto
  * @param {number} almacenId - ID del almacén (por defecto 2)
+ * @param {import('node-cache')|null} cacheExistencias - Cache de existencias
  * @returns {Promise<number>} - Cantidad de existencias del almacén configurado (0 si no hay)
  */
-export async function obtenerExistenciasProducto(productoId, almacenId = 2) {
+export async function obtenerExistenciasProducto(productoId, almacenId = 2, cacheExistencias = null) {
+    const cacheKey = `stock_a${almacenId}_p${productoId}`;
+    if (cacheExistencias) {
+        const cached = cacheExistencias.get(cacheKey);
+        if (typeof cached === 'number') {
+            return cached;
+        }
+    }
+
     const urlExistencias = `${API_BASE_URL}/existencia_producto`;
     
     try {
-        const resExistencias = await axios.post(urlExistencias, {
+        const resExistencias = await axiosClient.post(urlExistencias, {
             "api_key": PERSEO_API_KEY,
             "productosid": productoId
         }, {
-            timeout: IMAGE_REQUEST_TIMEOUT,
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity,
-            validateStatus: (status) => status < 500,
-            httpAgent: false,
-            httpsAgent: false
+            timeout: EXISTENCIAS_REQUEST_TIMEOUT
         });
         
-        // Verificar si hay existencias
-        if (resExistencias.data?.existencias && Array.isArray(resExistencias.data.existencias)) {
-            // Buscar el almacén especificado
-            const almacenEncontrado = resExistencias.data.existencias.find(
-                exist => exist.almacenesid === almacenId
-            );
-            
-            if (almacenEncontrado) {
-                return almacenEncontrado.existencias || 0;
-            }
-        }
-        
-        return 0;
-    } catch (err) {
-        // Si falla, intentar retry una vez
+        return guardarExistenciasEnCache(productoId, resExistencias.data?.existencias, cacheExistencias, almacenId);
+    } catch {
+        // Si falla, intentar retry rápido una vez
         try {
-            const resExistenciasRetry = await axios.post(urlExistencias, {
+            const resExistenciasRetry = await axiosClient.post(urlExistencias, {
                 "api_key": PERSEO_API_KEY,
                 "productosid": productoId
             }, {
-                timeout: IMAGE_REQUEST_TIMEOUT * 2,
-                maxContentLength: Infinity,
-                maxBodyLength: Infinity,
-                validateStatus: (status) => status < 500,
-                httpAgent: false,
-                httpsAgent: false
+                timeout: EXISTENCIAS_REQUEST_TIMEOUT
             });
             
-            if (resExistenciasRetry.data?.existencias && Array.isArray(resExistenciasRetry.data.existencias)) {
-                const almacenEncontrado = resExistenciasRetry.data.existencias.find(
-                    exist => exist.almacenesid === almacenId
-                );
-                
-                if (almacenEncontrado) {
-                    return almacenEncontrado.existencias || 0;
-                }
-            }
-        } catch (retryErr) {
-            // Si el retry también falla, devolver 0
+            return guardarExistenciasEnCache(productoId, resExistenciasRetry.data?.existencias, cacheExistencias, almacenId);
+        } catch {
+            return 0; // no se cachea el 0 de un fallo, para reintentar en la próxima petición
         }
-        
-        return 0;
     }
 }
 
 /**
- * Consulta existencias frescas para varios productos (tiempo casi real)
+ * Consulta existencias frescas para varios productos (tiempo casi real con caché)
  * @param {number[]} productosIds
  * @param {number} almacenId
+ * @param {import('node-cache')|null} cacheExistencias
  * @returns {Promise<Map<number, number>>}
  */
-export async function obtenerExistenciasPorProductosIds(productosIds, almacenId) {
+export async function obtenerExistenciasPorProductosIds(productosIds, almacenId, cacheExistencias = null) {
     const mapa = new Map();
+    const idsParaConsultar = [];
 
-    for (let i = 0; i < productosIds.length; i += EXISTENCIAS_BATCH_SIZE) {
-        const lote = productosIds.slice(i, i + EXISTENCIAS_BATCH_SIZE);
-        await Promise.all(
-            lote.map((productoId) =>
-                limitadorExistencias(async () => {
-                    const cantidad = await obtenerExistenciasProducto(productoId, almacenId);
-                    mapa.set(productoId, cantidad);
-                })
-            )
-        );
+    for (const productoId of productosIds) {
+        const cacheKey = `stock_a${almacenId}_p${productoId}`;
+        if (cacheExistencias) {
+            const cached = cacheExistencias.get(cacheKey);
+            if (typeof cached === 'number') {
+                mapa.set(productoId, cached);
+                continue;
+            }
+        }
+        idsParaConsultar.push(productoId);
     }
+
+    if (idsParaConsultar.length === 0) {
+        return mapa;
+    }
+
+    await Promise.all(
+        idsParaConsultar.map((productoId) =>
+            limitadorExistencias(async () => {
+                const cantidad = await obtenerExistenciasProducto(productoId, almacenId, cacheExistencias);
+                mapa.set(productoId, cantidad);
+            })
+        )
+    );
 
     return mapa;
 }
@@ -151,48 +170,69 @@ export async function obtenerExistenciasPorProductosIds(productosIds, almacenId)
  * Aplica stock fresco sobre grupos (clon, no muta caché)
  * @param {Array<{ variantes: Array<Record<string, unknown>> }>} items
  * @param {number} almacenId
+ * @param {import('node-cache')|null} cacheExistencias
  * @returns {Promise<Array<{ variantes: Array<Record<string, unknown>> }>>}
  */
-export async function aplicarExistenciasFrescasEnGrupos(items, almacenId) {
-    const ids = new Set();
+export async function aplicarExistenciasFrescasEnGrupos(items, almacenId, cacheExistencias = null) {
+    const idsParaConsultar = new Set();
+    const mapaStockCero = new Map();
+
     for (const grupo of items) {
         for (const variante of grupo.variantes) {
             const productoId = variante.productosid || variante.productoid || variante.id;
             const idNum = typeof productoId === 'number' ? productoId : parseInt(String(productoId), 10);
-            if (Number.isFinite(idNum) && idNum > 0) {
-                ids.add(idNum);
+            if (!Number.isFinite(idNum) || idNum <= 0) {
+                continue;
+            }
+
+            // OPTIMIZACIÓN CLAVE:
+            // Si el producto tiene existenciastotales_global <= 0,
+            // no existe stock en NINGÚN almacén de Perseo. Se asigna 0 directamente sin consulta HTTP.
+            const stockGlobal = variante.existenciastotales_global ?? variante.existenciastotales_erp ?? null;
+            if (stockGlobal !== null && stockGlobal <= 0) {
+                mapaStockCero.set(idNum, 0);
+            } else {
+                idsParaConsultar.add(idNum);
             }
         }
     }
 
-    if (ids.size === 0) {
-        return items;
+    let existencias = new Map();
+    if (idsParaConsultar.size > 0) {
+        existencias = await obtenerExistenciasPorProductosIds([...idsParaConsultar], almacenId, cacheExistencias);
     }
-
-    const existencias = await obtenerExistenciasPorProductosIds([...ids], almacenId);
 
     return items.map((grupo) => ({
         ...grupo,
         variantes: grupo.variantes.map((variante) => {
             const productoId = variante.productosid || variante.productoid || variante.id;
             const idNum = typeof productoId === 'number' ? productoId : parseInt(String(productoId), 10);
+            let stock = 0;
+            if (Number.isFinite(idNum)) {
+                if (mapaStockCero.has(idNum)) {
+                    stock = 0;
+                } else {
+                    stock = existencias.get(idNum) ?? 0;
+                }
+            }
             return {
                 ...variante,
-                existenciastotales: Number.isFinite(idNum) ? (existencias.get(idNum) ?? 0) : 0
+                existenciastotales: stock
             };
         })
     }));
 }
 
 /**
- * Hidrata productos con imágenes (secuencial, bajo pico de memoria); existencias opcionales
+ * Hidrata productos con imágenes (bajo consumo de memoria); existencias opcionales
  * @param {Array} productosRaw
  * @param {number} almacenId
  * @param {{ incluirImagenes?: boolean, maxImagenes?: number, omitirExistencias?: boolean }} opciones
  * @param {import('node-cache')|null} [cacheImagenes]
+ * @param {import('node-cache')|null} [cacheExistencias]
  * @returns {Promise<Array>}
  */
-export async function hidratarProductosConImagenes(productosRaw, almacenId = 2, opciones = {}, cacheImagenes = null) {
+export async function hidratarProductosConImagenes(productosRaw, almacenId = 2, opciones = {}, cacheImagenes = null, cacheExistencias = null) {
     const incluirImagenes = opciones.incluirImagenes !== false;
     const maxImagenes = opciones.maxImagenes ?? 1;
     const omitirExistencias = opciones.omitirExistencias === true;
@@ -200,10 +240,12 @@ export async function hidratarProductosConImagenes(productosRaw, almacenId = 2, 
 
     for (const prod of productosRaw) {
         const productoId = prod.productosid || prod.productoid || prod.id;
+        const stockGlobal = prod.existenciastotales ?? 0;
 
         if (!productoId) {
             resultados.push({
                 ...prod,
+                existenciastotales_global: stockGlobal,
                 imagenes_data: [],
                 existenciastotales: 0
             });
@@ -214,10 +256,15 @@ export async function hidratarProductosConImagenes(productosRaw, almacenId = 2, 
             if (!incluirImagenes) {
                 let existencias = 0;
                 if (!omitirExistencias) {
-                    existencias = await obtenerExistenciasProducto(productoId, almacenId);
+                    if (stockGlobal <= 0) {
+                        existencias = 0;
+                    } else {
+                        existencias = await obtenerExistenciasProducto(productoId, almacenId, cacheExistencias);
+                    }
                 }
                 resultados.push({
                     ...prod,
+                    existenciastotales_global: stockGlobal,
                     imagenes_data: [],
                     existenciastotales: existencias
                 });
@@ -228,17 +275,23 @@ export async function hidratarProductosConImagenes(productosRaw, almacenId = 2, 
 
             let existencias = 0;
             if (!omitirExistencias) {
-                existencias = await obtenerExistenciasProducto(productoId, almacenId);
+                if (stockGlobal <= 0) {
+                    existencias = 0;
+                } else {
+                    existencias = await obtenerExistenciasProducto(productoId, almacenId, cacheExistencias);
+                }
             }
 
             resultados.push({
                 ...prod,
+                existenciastotales_global: stockGlobal,
                 imagenes_data,
                 existenciastotales: existencias
             });
         } catch {
             resultados.push({
                 ...prod,
+                existenciastotales_global: stockGlobal,
                 imagenes_data: [],
                 existenciastotales: 0
             });
@@ -247,4 +300,3 @@ export async function hidratarProductosConImagenes(productosRaw, almacenId = 2, 
 
     return resultados;
 }
-

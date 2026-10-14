@@ -36,10 +36,10 @@ info:
     ## Caché y stock
 
     - **Catálogo** (imágenes, precios, nombres): **4 horas** en memoria del servidor
-    - **Stock (`existenciastotales`)**: se consulta **en cada petición** a Perseo (tiempo casi real)
+    - **Stock (`existenciastotales`)**: se consulta en tiempo casi real con caché de existencias (`CACHE_TTL_EXISTENCIAS`, por defecto 120 s) y optimización de concurrencia y descarte de productos sin stock global
     - Headers: `X-Cache-Catalogo: HIT|MISS`, `X-Stock: FRESH`
     - Categorías/subcategorías: **6 horas**
-    - Usa `POST /api/cache/clear` solo si cambian productos/imágenes en Perseo (no afecta stock en vivo)
+    - Usa `POST /api/cache/clear` para limpiar todo el caché (catálogo, imágenes y existencias)
 
     ## Formato de error
 

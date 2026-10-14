@@ -1,8 +1,10 @@
 import {
     CACHE_TTL_CATEGORIAS,
     CACHE_TTL_PRODUCTOS,
+    CACHE_TTL_EXISTENCIAS,
     CACHE_MAX_CATALOG_KEYS,
-    CACHE_MAX_IMAGENES_KEYS
+    CACHE_MAX_IMAGENES_KEYS,
+    CACHE_MAX_EXISTENCIAS_KEYS
 } from '../config/index.js';
 import { authenticateApiKey } from '../middleware/auth.js';
 
@@ -10,11 +12,12 @@ import { authenticateApiKey } from '../middleware/auth.js';
  * Endpoint: POST /api/cache/stats
  * Obtiene estadísticas del caché
  */
-export function setupCacheRoutes(app, cacheCategorias, cacheProductos, cacheImagenes) {
+export function setupCacheRoutes(app, cacheCategorias, cacheProductos, cacheImagenes, cacheExistencias) {
     app.post('/api/cache/stats', authenticateApiKey, (req, res) => {
         const statsCategorias = cacheCategorias.getStats();
         const statsProductos = cacheProductos.getStats();
         const statsImagenes = cacheImagenes.getStats();
+        const statsExistencias = cacheExistencias ? cacheExistencias.getStats() : { keys: 0, hits: 0, misses: 0 };
 
         res.json({
             success: true,
@@ -37,6 +40,13 @@ export function setupCacheRoutes(app, cacheCategorias, cacheProductos, cacheImag
                 misses: statsImagenes.misses || 0,
                 ttl: CACHE_TTL_PRODUCTOS,
                 max_keys: CACHE_MAX_IMAGENES_KEYS
+            },
+            existencias: {
+                keys: statsExistencias.keys || 0,
+                hits: statsExistencias.hits || 0,
+                misses: statsExistencias.misses || 0,
+                ttl: CACHE_TTL_EXISTENCIAS,
+                max_keys: CACHE_MAX_EXISTENCIAS_KEYS
             }
         });
     });
@@ -49,6 +59,9 @@ export function setupCacheRoutes(app, cacheCategorias, cacheProductos, cacheImag
         cacheCategorias.flushAll();
         cacheProductos.flushAll();
         cacheImagenes.flushAll();
+        if (cacheExistencias) {
+            cacheExistencias.flushAll();
+        }
 
         res.json({
             success: true,

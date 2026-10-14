@@ -32,18 +32,22 @@ API_KEY=tu_api_key
 API_BASE_URL=https://accesoalnusan.app/api
 ALMACEN_ID=2
 CACHE_TTL_PRODUCTOS=14400
+CACHE_TTL_EXISTENCIAS=120
+DEFAULT_INCLUIR_IMAGENES=false
 DEFAULT_MAX_IMAGENES=1
 DEFAULT_TARIFAS_RESUMIDAS=true
-MAX_CONCURRENT_REQUESTS=12
-HIDRATACION_BATCH_SIZE=8
+MAX_CONCURRENT_EXISTENCIAS=15
+EXISTENCIAS_BATCH_SIZE=30
 PRODUCTOS_CONSULTA_TIMEOUT=60000
 ```
 
 **Variables principales:**
 - `PERSEO_API_KEY` / `API_KEY` - Credencial Perseo y auth de endpoints
-- `CACHE_TTL_PRODUCTOS` - Caché catálogo en segundos (14400 = 4 h). Stock siempre en tiempo real
-- `DEFAULT_TARIFAS_RESUMIDAS` - `true` reduce banda (solo tarifa PUBLICO)
-- `MAX_CONCURRENT_*` / `HIDRATACION_BATCH_SIZE` - Ajustar para Render 512MB
+- `CACHE_TTL_PRODUCTOS` - Caché catálogo en segundos (14400 = 4 h)
+- `CACHE_TTL_EXISTENCIAS` - Caché de stock en segundos (120 = 2 min, evita saturar Perseo con peticiones N+1)
+- `MAX_CONCURRENT_EXISTENCIAS` - Concurrencia de consultas de stock (recomendado 15-20)
+- `DEFAULT_TARIFAS_RESUMIDAS` - `true` reduce peso del JSON (solo tarifa PUBLICO)
+- `DEFAULT_INCLUIR_IMAGENES` - `false` recomendado si solo se necesita catálogo y stock rápido
 
 ## 🏃 Ejecución
 

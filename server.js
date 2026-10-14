@@ -2,7 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import NodeCache from 'node-cache';
-import { PORT, CACHE_TTL_CATEGORIAS, CACHE_TTL_PRODUCTOS, CACHE_MAX_CATALOG_KEYS, CACHE_MAX_IMAGENES_KEYS } from './config/index.js';
+import {
+    PORT,
+    CACHE_TTL_CATEGORIAS,
+    CACHE_TTL_PRODUCTOS,
+    CACHE_TTL_EXISTENCIAS,
+    CACHE_MAX_CATALOG_KEYS,
+    CACHE_MAX_IMAGENES_KEYS,
+    CACHE_MAX_EXISTENCIAS_KEYS
+} from './config/index.js';
 import { requestLogger } from './middleware/logger.js';
 import { setupCategoriasRoutes } from './routes/categorias.js';
 import { setupSubcategoriasRoutes } from './routes/subcategorias.js';
@@ -38,13 +46,18 @@ const cacheImagenes = new NodeCache({
     useClones: false,
     maxKeys: CACHE_MAX_IMAGENES_KEYS
 });
+const cacheExistencias = new NodeCache({
+    stdTTL: CACHE_TTL_EXISTENCIAS,
+    useClones: false,
+    maxKeys: CACHE_MAX_EXISTENCIAS_KEYS
+});
 
 // Configurar rutas
 setupCategoriasRoutes(app, cacheCategorias);
 setupSubcategoriasRoutes(app, cacheCategorias);
 setupAlmacenesRoutes(app);
-setupProductosRoutes(app, cacheProductos, cacheCategorias, cacheImagenes);
-setupCacheRoutes(app, cacheCategorias, cacheProductos, cacheImagenes);
+setupProductosRoutes(app, cacheProductos, cacheCategorias, cacheImagenes, cacheExistencias);
+setupCacheRoutes(app, cacheCategorias, cacheProductos, cacheImagenes, cacheExistencias);
 
 // Iniciar servidor
 app.listen(PORT, () => {

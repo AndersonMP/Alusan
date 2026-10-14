@@ -1,11 +1,11 @@
-import axios from 'axios';
 import {
     PERSEO_API_KEY,
     API_BASE_URL,
     IMAGE_REQUEST_TIMEOUT,
     MAX_IMAGE_RESPONSE_BYTES
 } from '../config/index.js';
-import { procesarImagen } from '../utils/imageProcessor.js';
+import { axiosClient } from '../utils/httpClient.js';
+import { procesarImagen, limitadorCompresion } from '../utils/imageProcessor.js';
 
 /**
  * Descarga imágenes crudas de Perseo (sin comprimir)
@@ -18,16 +18,13 @@ export async function obtenerImagenesProducto(productoId, maxImagenes = 1) {
     const limite = maxImagenes > 0 ? maxImagenes : 0;
 
     try {
-        const resImg = await axios.post(urlImagen, {
+        const resImg = await axiosClient.post(urlImagen, {
             api_key: PERSEO_API_KEY,
             productosid: productoId
         }, {
             timeout: IMAGE_REQUEST_TIMEOUT,
             maxContentLength: MAX_IMAGE_RESPONSE_BYTES,
-            maxBodyLength: MAX_IMAGE_RESPONSE_BYTES,
-            validateStatus: (status) => status < 500,
-            httpAgent: false,
-            httpsAgent: false
+            maxBodyLength: MAX_IMAGE_RESPONSE_BYTES
         });
 
         if (resImg.data?.informacion === true &&
@@ -42,16 +39,13 @@ export async function obtenerImagenesProducto(productoId, maxImagenes = 1) {
         return [];
     } catch {
         try {
-            const resImgRetry = await axios.post(urlImagen, {
+            const resImgRetry = await axiosClient.post(urlImagen, {
                 api_key: PERSEO_API_KEY,
                 productosid: productoId
             }, {
-                timeout: IMAGE_REQUEST_TIMEOUT * 2,
+                timeout: IMAGE_REQUEST_TIMEOUT,
                 maxContentLength: MAX_IMAGE_RESPONSE_BYTES,
-                maxBodyLength: MAX_IMAGE_RESPONSE_BYTES,
-                validateStatus: (status) => status < 500,
-                httpAgent: false,
-                httpsAgent: false
+                maxBodyLength: MAX_IMAGE_RESPONSE_BYTES
             });
 
             if (resImgRetry.data?.informacion === true &&
@@ -131,7 +125,7 @@ export function stripImagenesDeGrupos(items) {
 }
 
 /**
- * Adjunta imágenes desde caché; re-hidrata solo las que falten
+ * Adjunta imágenes desde caché; re-hidrata solo las que falten concurrentemente
  * @param {Array<{ variantes: Array<Record<string, unknown>> }>} items
  * @param {import('node-cache')|null} cacheImagenes
  * @param {{ incluirImagenes: boolean, maxImagenes: number }} opciones
@@ -148,26 +142,57 @@ export async function adjuntarImagenesAGrupos(items, cacheImagenes, opciones) {
         }));
     }
 
-    const grupos = [];
-
+    // 1. Recolectar todos los IDs únicos de producto
+    const idsUnicos = new Set();
     for (const grupo of items) {
-        const variantes = [];
-
         for (const variante of grupo.variantes) {
             const productoId = variante.productosid || variante.productoid || variante.id;
             const idNum = typeof productoId === 'number' ? productoId : parseInt(String(productoId), 10);
-
-            let imagenes_data = [];
-
             if (Number.isFinite(idNum) && idNum > 0) {
-                imagenes_data = await obtenerImagenesComprimidas(idNum, opciones.maxImagenes, cacheImagenes);
+                idsUnicos.add(idNum);
             }
-
-            variantes.push({ ...variante, imagenes_data });
         }
-
-        grupos.push({ ...grupo, variantes });
     }
 
-    return grupos;
+    // 2. Verificar cuáles ya están en caché y cuáles faltan
+    const mapaImagenes = new Map();
+    const idsFaltantes = [];
+
+    for (const id of idsUnicos) {
+        const key = claveCacheImagen(id, opciones.maxImagenes);
+        if (cacheImagenes) {
+            const cached = cacheImagenes.get(key);
+            if (Array.isArray(cached)) {
+                mapaImagenes.set(id, cached);
+                continue;
+            }
+        }
+        idsFaltantes.push(id);
+    }
+
+    // 3. Descargar y comprimir concurrentemente solo los faltantes
+    if (idsFaltantes.length > 0) {
+        await Promise.all(
+            idsFaltantes.map((id) =>
+                limitadorCompresion(async () => {
+                    const imagenes = await obtenerImagenesComprimidas(id, opciones.maxImagenes, cacheImagenes);
+                    mapaImagenes.set(id, imagenes);
+                })
+            )
+        );
+    }
+
+    // 4. Asignar imágenes a las variantes de cada grupo
+    return items.map((grupo) => ({
+        ...grupo,
+        variantes: grupo.variantes.map((variante) => {
+            const productoId = variante.productosid || variante.productoid || variante.id;
+            const idNum = typeof productoId === 'number' ? productoId : parseInt(String(productoId), 10);
+            const imagenes_data = Number.isFinite(idNum) ? (mapaImagenes.get(idNum) || []) : [];
+            return {
+                ...variante,
+                imagenes_data
+            };
+        })
+    }));
 }

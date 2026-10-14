@@ -39,10 +39,11 @@ async function construirRespuestaProductos(params) {
         opcionesRespuesta,
         mapaCategorias,
         itemsGrupos,
-        cacheImagenes
+        cacheImagenes,
+        cacheExistencias
     } = params;
 
-    const itemsConStock = await aplicarExistenciasFrescasEnGrupos(itemsGrupos, almacenIdNum);
+    const itemsConStock = await aplicarExistenciasFrescasEnGrupos(itemsGrupos, almacenIdNum, cacheExistencias);
     const itemsFinales = await adjuntarImagenesAGrupos(itemsConStock, cacheImagenes, opcionesRespuesta);
 
     return {
@@ -65,7 +66,7 @@ async function construirRespuestaProductos(params) {
 /**
  * Endpoint: POST /api/productos
  */
-export function setupProductosRoutes(app, cacheProductos, cacheCategorias, cacheImagenes) {
+export function setupProductosRoutes(app, cacheProductos, cacheCategorias, cacheImagenes, cacheExistencias) {
     app.post('/api/productos', authenticateApiKey, async (req, res) => {
         const categoriaId = req.body?.categoria_id;
         const categoriaNombre = req.body?.categoria_nombre;
@@ -161,7 +162,8 @@ export function setupProductosRoutes(app, cacheProductos, cacheCategorias, cache
                     opcionesRespuesta,
                     mapaCategorias,
                     itemsGrupos: catalogoCache.items,
-                    cacheImagenes
+                    cacheImagenes,
+                    cacheExistencias
                 });
 
                 res.set('Cache-Control', `private, max-age=${CACHE_CONTROL_PRODUCTOS}`);
@@ -187,19 +189,16 @@ export function setupProductosRoutes(app, cacheProductos, cacheCategorias, cache
                 });
             }
 
-            const productosHidratados = await hidratarProductosConImagenes(
-                productosRaw,
-                almacenIdNum,
-                {
-                    incluirImagenes: opcionesRespuesta.incluirImagenes,
-                    maxImagenes: opcionesRespuesta.maxImagenes,
-                    omitirExistencias: true
-                },
-                cacheImagenes
-            );
+            // Normalizar productos preservando existenciastotales_global para optimizar stock fresco
+            const productosNormalizados = productosRaw.map((prod) => ({
+                ...prod,
+                existenciastotales_global: prod.existenciastotales ?? 0,
+                existenciastotales: 0,
+                imagenes_data: []
+            }));
 
             const productosConNombres = enriquecerProductosConNombresTaxonomia(
-                productosHidratados,
+                productosNormalizados,
                 mapaCategorias,
                 mapaSubcategorias
             ).map((prod) => aplicarOpcionesVariante(prod, opcionesRespuesta));
@@ -217,7 +216,8 @@ export function setupProductosRoutes(app, cacheProductos, cacheCategorias, cache
                 opcionesRespuesta,
                 mapaCategorias,
                 itemsGrupos,
-                cacheImagenes
+                cacheImagenes,
+                cacheExistencias
             });
 
             res.set('Cache-Control', `private, max-age=${CACHE_CONTROL_PRODUCTOS}`);

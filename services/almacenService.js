@@ -1,5 +1,5 @@
-import axios from 'axios';
 import { PERSEO_API_KEY, API_BASE_URL } from '../config/index.js';
+import { axiosClient } from '../utils/httpClient.js';
 import NodeCache from 'node-cache';
 
 // Cache de almacenes (30 minutos TTL)
@@ -19,11 +19,10 @@ export async function obtenerAlmacenes() {
     }
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/almacenes_consulta`, {
+        const response = await axiosClient.post(`${API_BASE_URL}/almacenes_consulta`, {
             "api_key": PERSEO_API_KEY
         }, {
-            timeout: 10000,
-            validateStatus: (status) => status < 500
+            timeout: 10000
         });
 
         if (response.data?.almacenes && Array.isArray(response.data.almacenes)) {
