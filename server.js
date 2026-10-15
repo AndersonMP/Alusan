@@ -18,6 +18,8 @@ import { setupProductosRoutes } from './routes/productos.js';
 import { setupAlmacenesRoutes } from './routes/almacenes.js';
 import { setupCacheRoutes } from './routes/cache.js';
 
+import { crearCacheSeguro } from './utils/cacheManager.js';
+
 const app = express();
 
 // Middleware
@@ -34,19 +36,19 @@ app.get('/', (req, res) => {
     res.redirect('/docs');
 });
 
-// Configuración de caché
-const cacheCategorias = new NodeCache({ stdTTL: CACHE_TTL_CATEGORIAS, useClones: false });
-const cacheProductos = new NodeCache({
+// Configuración de caché protegida contra desbordamientos
+const cacheCategorias = crearCacheSeguro({ stdTTL: CACHE_TTL_CATEGORIAS, useClones: false });
+const cacheProductos = crearCacheSeguro({
     stdTTL: CACHE_TTL_PRODUCTOS,
     useClones: false,
     maxKeys: CACHE_MAX_CATALOG_KEYS
 });
-const cacheImagenes = new NodeCache({
+const cacheImagenes = crearCacheSeguro({
     stdTTL: CACHE_TTL_PRODUCTOS,
     useClones: false,
     maxKeys: CACHE_MAX_IMAGENES_KEYS
 });
-const cacheExistencias = new NodeCache({
+const cacheExistencias = crearCacheSeguro({
     stdTTL: CACHE_TTL_EXISTENCIAS,
     useClones: false,
     maxKeys: CACHE_MAX_EXISTENCIAS_KEYS
