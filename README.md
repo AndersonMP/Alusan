@@ -7,7 +7,7 @@ Servidor API para procesamiento optimizado de productos de Perseo con agrupació
 - **Procesamiento Paralelo**: Descarga imágenes y existencias simultáneamente
 - **Agrupación Inteligente**: Agrupa productos por código padre (separado por guion)
 - **Consulta de Existencias**: Obtiene existencias del almacén especificado
-- **Imágenes ultra comprimidas**: WebP miniatura (~120px, calidad baja) para reducir banda en Render
+- **Imágenes optimizadas para Web**: WebP optimizado (hasta 800px) con compresión balanceada para e-commerce
 
 ## 📋 Requisitos Previos
 

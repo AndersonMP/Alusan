@@ -16,14 +16,14 @@ export const PORT = process.env.PORT || 3001;
 export const API_KEY = process.env.API_KEY || PERSEO_API_KEY;
 export const API_SECRET_KEY = process.env.API_SECRET_KEY;
 
-// Compresión agresiva (prioriza poco peso en respuesta / banda en Render)
-export const MAX_IMAGE_SIZE = entero(process.env.MAX_IMAGE_SIZE, 120);
-export const IMAGE_QUALITY = entero(process.env.IMAGE_QUALITY, 38);
-export const COMPRESSION_EFFORT = entero(process.env.COMPRESSION_EFFORT, 6);
-export const MAX_OUTPUT_BYTES = entero(process.env.MAX_OUTPUT_BYTES, 18000);
-export const IMAGE_EMERGENCY_SIZE = entero(process.env.IMAGE_EMERGENCY_SIZE, 72);
-export const IMAGE_EMERGENCY_QUALITY = entero(process.env.IMAGE_EMERGENCY_QUALITY, 28);
-export const MAX_IMAGE_RESPONSE_BYTES = entero(process.env.MAX_IMAGE_RESPONSE_BYTES, 3 * 1024 * 1024);
+// Calidad y dimensiones optimizadas para e-commerce (hasta 800px)
+export const MAX_IMAGE_SIZE = entero(process.env.MAX_IMAGE_SIZE, 800);
+export const IMAGE_QUALITY = entero(process.env.IMAGE_QUALITY, 75);
+export const COMPRESSION_EFFORT = entero(process.env.COMPRESSION_EFFORT, 4);
+export const MAX_OUTPUT_BYTES = entero(process.env.MAX_OUTPUT_BYTES, 150000);
+export const IMAGE_EMERGENCY_SIZE = entero(process.env.IMAGE_EMERGENCY_SIZE, 400);
+export const IMAGE_EMERGENCY_QUALITY = entero(process.env.IMAGE_EMERGENCY_QUALITY, 60);
+export const MAX_IMAGE_RESPONSE_BYTES = entero(process.env.MAX_IMAGE_RESPONSE_BYTES, 5 * 1024 * 1024);
 
 export const MAX_CONCURRENT_REQUESTS = entero(process.env.MAX_CONCURRENT_REQUESTS, isProd ? 4 : 12);
 export const MAX_CONCURRENT_COMPRESSION = entero(process.env.MAX_CONCURRENT_COMPRESSION, isProd ? 2 : 6);
