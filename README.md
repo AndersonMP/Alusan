@@ -42,7 +42,7 @@ PRODUCTOS_CONSULTA_TIMEOUT=60000
 ```
 
 **Variables principales:**
-- `PERSEO_API_KEY` / `API_KEY` - Credencial Perseo y auth de endpoints
+- `PERSEO_API_KEY` / `API_KEY` - Credencial Perseo y auth de endpoints. `PERSEO_API_KEY` es **obligatoria**: el servicio falla al arrancar si no está definida (no hay valor por defecto)
 - `CACHE_TTL_PRODUCTOS` - Caché catálogo en segundos (14400 = 4 h)
 - `CACHE_TTL_EXISTENCIAS` - Caché de stock en segundos (120 = 2 min, evita saturar Perseo con peticiones N+1)
 - `MAX_CONCURRENT_EXISTENCIAS` - Concurrencia de consultas de stock (recomendado 15-20)

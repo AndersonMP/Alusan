@@ -9,11 +9,22 @@ const entero = (valor, fallback) => {
     return Number.isFinite(n) ? n : fallback;
 };
 
-export const PERSEO_API_KEY = process.env.PERSEO_API_KEY || "SGqmr7Cf4Gn634pGdqZIdISfTZ4SGfeur9IRPLSuM2I-";
+const requerido = (nombre) => {
+    const valor = process.env[nombre];
+    if (!valor || !valor.trim()) {
+        throw new Error(
+            `Falta la variable de entorno obligatoria ${nombre}. ` +
+            'Configúrala en el entorno del servicio (Coolify/Render) o en .env; no hay valor por defecto.'
+        );
+    }
+    return valor.trim();
+};
+
+export const PERSEO_API_KEY = requerido('PERSEO_API_KEY');
 export const API_BASE_URL = process.env.API_BASE_URL || "https://accesoalnusan.app/api";
 export const PORT = process.env.PORT || 3001;
 
-export const API_KEY = process.env.API_KEY || PERSEO_API_KEY;
+export const API_KEY = process.env.API_KEY?.trim() || PERSEO_API_KEY;
 export const API_SECRET_KEY = process.env.API_SECRET_KEY;
 
 // Calidad y dimensiones optimizadas para e-commerce (hasta 800px)
