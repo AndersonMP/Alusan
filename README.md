@@ -48,6 +48,10 @@ PRODUCTOS_CONSULTA_TIMEOUT=60000
 - `MAX_CONCURRENT_EXISTENCIAS` - Concurrencia de consultas de stock (recomendado 15-20)
 - `DEFAULT_TARIFAS_RESUMIDAS` - `true` reduce peso del JSON (solo tarifa PUBLICO)
 - `DEFAULT_INCLUIR_IMAGENES` - `false` recomendado si solo se necesita catálogo y stock rápido
+- `MAX_IMAGE_SIZE` - Lado máximo de salida en px (800 por defecto). No amplía imágenes: si Perseo entrega 480px, la salida queda en 480px
+- `IMAGE_QUALITY` / `COMPRESSION_EFFORT` - Calidad y esfuerzo de compresión WebP (75 / 4 por defecto)
+- `MAX_OUTPUT_BYTES` + `IMAGE_EMERGENCY_SIZE` - Si la imagen comprimida supera el límite, se recomprime al tamaño de emergencia (400px)
+- Al arrancar, el servicio escribe en el log los valores efectivos de imagen; úsalos para confirmar que las envs del despliegue se aplicaron
 
 ## 🏃 Ejecución
 

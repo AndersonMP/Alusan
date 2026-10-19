@@ -25,6 +25,17 @@ export const IMAGE_EMERGENCY_SIZE = entero(process.env.IMAGE_EMERGENCY_SIZE, 400
 export const IMAGE_EMERGENCY_QUALITY = entero(process.env.IMAGE_EMERGENCY_QUALITY, 60);
 export const MAX_IMAGE_RESPONSE_BYTES = entero(process.env.MAX_IMAGE_RESPONSE_BYTES, 5 * 1024 * 1024);
 
+// Valores efectivos de imagen: se registran al arrancar para poder verificar
+// en los logs del despliegue si las variables de entorno se aplicaron.
+export const CONFIG_IMAGENES = Object.freeze({
+    maxSize: MAX_IMAGE_SIZE,
+    quality: IMAGE_QUALITY,
+    effort: COMPRESSION_EFFORT,
+    maxOutputBytes: MAX_OUTPUT_BYTES,
+    emergencySize: IMAGE_EMERGENCY_SIZE,
+    emergencyQuality: IMAGE_EMERGENCY_QUALITY
+});
+
 export const MAX_CONCURRENT_REQUESTS = entero(process.env.MAX_CONCURRENT_REQUESTS, isProd ? 4 : 12);
 export const MAX_CONCURRENT_COMPRESSION = entero(process.env.MAX_CONCURRENT_COMPRESSION, isProd ? 2 : 6);
 export const MAX_CONCURRENT_EXISTENCIAS = entero(process.env.MAX_CONCURRENT_EXISTENCIAS, isProd ? 15 : 20);

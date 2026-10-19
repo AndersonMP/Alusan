@@ -9,7 +9,8 @@ import {
     CACHE_TTL_EXISTENCIAS,
     CACHE_MAX_CATALOG_KEYS,
     CACHE_MAX_IMAGENES_KEYS,
-    CACHE_MAX_EXISTENCIAS_KEYS
+    CACHE_MAX_EXISTENCIAS_KEYS,
+    CONFIG_IMAGENES
 } from './config/index.js';
 import { requestLogger } from './middleware/logger.js';
 import { setupCategoriasRoutes } from './routes/categorias.js';
@@ -64,4 +65,18 @@ setupCacheRoutes(app, cacheCategorias, cacheProductos, cacheImagenes, cacheExist
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`Perseo API escuchando en http://localhost:${PORT} (docs: /docs)`);
+    console.log(
+        `Imágenes: ${CONFIG_IMAGENES.maxSize}px calidad ${CONFIG_IMAGENES.quality} ` +
+        `(emergencia ${CONFIG_IMAGENES.emergencySize}px/${CONFIG_IMAGENES.emergencyQuality}, ` +
+        `límite ${CONFIG_IMAGENES.maxOutputBytes} bytes)`
+    );
+    if (CONFIG_IMAGENES.maxSize <= 200 || CONFIG_IMAGENES.quality < 40) {
+        console.warn(
+            'Valores de imagen heredados detectados: revisa que MAX_IMAGE_SIZE e IMAGE_QUALITY ' +
+            'estén definidos en el entorno del servicio.'
+        );
+    }
+    if (CONFIG_IMAGENES.emergencySize > CONFIG_IMAGENES.maxSize) {
+        console.warn('IMAGE_EMERGENCY_SIZE es mayor que MAX_IMAGE_SIZE: revisa la configuración.');
+    }
 });

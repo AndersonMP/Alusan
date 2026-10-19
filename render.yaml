@@ -38,6 +38,20 @@ services:
         value: "1"
       - key: DEFAULT_TARIFAS_RESUMIDAS
         value: "true"
+      - key: MAX_IMAGE_SIZE
+        value: "800"
+      - key: IMAGE_QUALITY
+        value: "75"
+      - key: COMPRESSION_EFFORT
+        value: "4"
+      - key: MAX_OUTPUT_BYTES
+        value: "150000"
+      - key: IMAGE_EMERGENCY_SIZE
+        value: "400"
+      - key: IMAGE_EMERGENCY_QUALITY
+        value: "60"
+      - key: MAX_IMAGE_RESPONSE_BYTES
+        value: "5242880"
       - key: MAX_CONCURRENT_REQUESTS
         value: "4"
       - key: MAX_CONCURRENT_COMPRESSION
